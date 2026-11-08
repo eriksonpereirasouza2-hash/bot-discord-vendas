@@ -1,0 +1,44 @@
+function crc16(str) {
+    let crc = 0xFFFF;
+    for (let c = 0; c < str.length; c++) {
+        crc ^= str.charCodeAt(c) << 8;
+        for (let i = 0; i < 8; i++) {
+            if ((crc & 0x8000) !== 0) {
+                crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+            } else {
+                crc = (crc << 1) & 0xFFFF;
+            }
+        }
+    }
+    return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+function gerarPixPayload(chavePix, nomeRecebedor, cidade, valor, txid) {
+    const format = (id, value) => {
+        const len = value.length.toString().padStart(2, '0');
+        return `${id}${len}${value}`;
+    };
+
+    const clean = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
+    const merchantAccount = format('00', 'br.gov.bcb.pix') + format('01', chavePix);
+    const valorStr = Number(valor).toFixed(2);
+    
+    let payload = 
+        format('00', '01') +
+        format('26', merchantAccount) +
+        format('52', '0000') +
+        format('53', '986') +
+        format('54', valorStr) +
+        format('58', 'BR') +
+        format('59', clean(nomeRecebedor).substring(0, 25)) +
+        format('60', clean(cidade).substring(0, 15)) +
+        format('62', format('05', clean(txid).replace(/[^A-Z0-9]/g, '').substring(0, 25)));
+
+    payload += '6304';
+    payload += crc16(payload);
+
+    return payload;
+}
+
+module.exports = { gerarPixPayload };
